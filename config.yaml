@@ -1,0 +1,80 @@
+# 数字人直播系统配置
+
+# 直播间配置
+live:
+  platform: "douyin"           # douyin / kuaishou / bilibili
+  room_id: ""                  # 直播间 ID
+  rtmp_url: ""                 # RTMP 推流地址
+  rtmp_key: ""                 # 推流密钥
+
+# 大模型配置（OpenAI 兼容协议）
+llm:
+  provider: "deepseek"         # deepseek / openai / qwen / custom
+  api_key: ""                  # 填入你的 API Key
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+  max_tokens: 200
+  temperature: 0.8
+  system_prompt: |
+    你是一个专业的直播带货助手。回答要简短有力，适合直播间口播。
+    不超过50个字。要有亲和力，适当使用语气词。
+
+# TTS 语音合成配置
+tts:
+  engine: "edge-tts"           # edge-tts / cosyvoice / gpt-sovits
+  voice: "zh-CN-XiaoyiNeural"  # edge-tts 音色
+  rate: "+10%"                 # 语速
+  volume: "+0%"                # 音量
+
+  # CosyVoice 配置（engine: cosyvoice 时生效）
+  cosyvoice_model: "pretrained_models/CosyVoice2-0.5B"
+  cosyvoice_sft_voice: "中文女"
+
+  # GPT-SoVITS 配置（engine: gpt-sovits 时生效）
+  gpt_sovits_url: "http://127.0.0.1:9880"
+  reference_audio: ""
+  reference_text: ""
+
+# 数字人配置
+human:
+  engine: "musetalk"           # musetalk / simple
+  face_image: "assets/avatar.png"  # 人物正面照片
+  face_video: ""               # 人物视频（可选，用于动作参考）
+
+  # MuseTalk 配置
+  musetalk_path: "../MuseTalk"  # MuseTalk 项目路径
+  musetalk_version: "v15"       # v10 / v15
+  musetalk_fps: 25
+
+  # SadTalker 配置
+  sadtalker_checkpoint: ""
+  sadtalker_facerender: ""
+
+  # 输出配置
+  output_width: 1080
+  output_height: 1920          # 竖屏 9:16
+  output_fps: 25
+
+# 弹幕配置
+barrage:
+  poll_interval: 1.0           # 弹幕轮询间隔（秒）
+  max_queue_size: 50           # 弹幕队列最大长度
+  ignore_keywords: []          # 忽略的关键词
+  priority_keywords: ["多少钱", "怎么买", "链接", "下单"]  # 优先回复关键词
+
+# 直播话术配置
+scripts:
+  welcome_enabled: true        # 自动欢迎
+  welcome_template: "欢迎 {user} 来到直播间！"
+  idle_enabled: true           # 空闲话术
+  idle_interval: 30            # 空闲间隔（秒）
+  idle_scripts:
+    - "欢迎新来的宝宝们，喜欢的点点关注不迷路~"
+    - "今天给大家带来超值好物，有什么想看的可以扣在公屏上哦~"
+    - "关注主播不迷路，主播带你上高速！"
+  product_enabled: true        # 商品讲解
+
+# 日志配置
+logging:
+  level: "INFO"                # DEBUG / INFO / WARNING / ERROR
+  file: "output/live.log"
