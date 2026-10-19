@@ -43,8 +43,8 @@ class DouyinBarrage(BaseBarrage):
         # 获取直播间信息和 WebSocket 地址
         ws_url = await self._get_ws_url()
         if not ws_url:
-            logger.error("获取 WebSocket 地址失败，请检查 room_id")
-            return
+            await self.disconnect()
+            raise RuntimeError("抖音 protobuf 弹幕适配尚未完成，请改用 --replay 进行验收")
 
         # 连接 WebSocket
         try:

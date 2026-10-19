@@ -94,7 +94,13 @@ tts:
 python main.py -i           # 交互模式（手动输入模拟弹幕）
 python main.py              # 自动模式（连接直播间）
 python main.py -c config.yaml
+python main.py --check --dry-run --replay samples/barrage.jsonl
+python main.py --dry-run --replay samples/barrage.jsonl
 ```
+
+`--check` 只读检查配置、头像、FFmpeg、RTMP 地址和弹幕来源。`--replay` 使用 JSONL 录制样本重放一场弹幕，`--dry-run` 不调用 LLM、TTS、数字人或推流服务，适合在发布前验证“弹幕 → 关键词/回复决策”链路。
+
+当前抖音 WebSocket protobuf 适配未完成，配置真实 `room_id` 会明确失败，不再伪装成连接成功。生产接入应实现并测试正式平台适配器，或先把平台事件转换成回放 JSONL 完成验收。
 
 ---
 

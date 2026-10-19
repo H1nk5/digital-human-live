@@ -61,6 +61,7 @@ barrage:
   max_queue_size: 50           # 弹幕队列最大长度
   ignore_keywords: []          # 忽略的关键词
   priority_keywords: ["多少钱", "怎么买", "链接", "下单"]  # 优先回复关键词
+  replay_speed: 1.0           # --replay 模式的时间倍率
 
 # 直播话术配置
 scripts:

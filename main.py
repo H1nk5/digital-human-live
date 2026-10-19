@@ -5,6 +5,7 @@
 
 import argparse
 import asyncio
+import json
 import logging
 import signal
 import sys
@@ -12,6 +13,7 @@ import time
 from pathlib import Path
 
 from utils import load_config, setup_logging, format_duration
+from preflight import check_config
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +21,11 @@ logger = logging.getLogger(__name__)
 class DigitalHumanLive:
     """数字人直播主控"""
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, replay_path=None):
         self.config = config
         self._running = False
         self._start_time = 0.0
+        self.replay_path = replay_path
 
         # 模块（延迟初始化）
         self.barrage = None
@@ -120,7 +123,16 @@ class DigitalHumanLive:
         platform = live_cfg.get("platform", "douyin")
         room_id = live_cfg.get("room_id", "")
 
-        if room_id:
+        if self.replay_path:
+            from barrage import ReplayBarrage
+            self.barrage = ReplayBarrage(
+                self.replay_path,
+                speed=barrage_cfg.get("replay_speed", 1.0),
+                poll_interval=barrage_cfg.get("poll_interval", 1.0),
+            )
+            await self.barrage.connect()
+            logger.info(f"弹幕回放已加载: {self.replay_path}")
+        elif room_id:
             from barrage import DouyinBarrage
             self.barrage = DouyinBarrage(
                 room_id=room_id,
@@ -146,6 +158,9 @@ class DigitalHumanLive:
                 msg = None
                 if self.barrage:
                     msg = await self.barrage.get_message()
+                if msg is None and getattr(self.barrage, "exhausted", False):
+                    logger.info("弹幕回放已完成")
+                    break
 
                 # 处理弹幕或空闲话术
                 reply = None
@@ -260,14 +275,29 @@ async def main():
     parser = argparse.ArgumentParser(description="数字人直播系统")
     parser.add_argument("-c", "--config", default="config.yaml", help="配置文件路径")
     parser.add_argument("-i", "--interactive", action="store_true", help="交互模式")
+    parser.add_argument("--check", action="store_true", help="只执行配置与运行环境预检")
+    parser.add_argument("--dry-run", action="store_true", help="不调用外部服务，仅验证弹幕到回复决策")
+    parser.add_argument("--replay", help="JSONL 弹幕回放文件")
     args = parser.parse_args()
 
     # 加载配置
     config = load_config(args.config)
     setup_logging(config)
+    readiness = check_config(config, dry_run=args.dry_run, replay_file=args.replay)
+    if args.check:
+        print(json.dumps(readiness, ensure_ascii=False, indent=2))
+        raise SystemExit(0 if readiness["ok"] else 2)
+    if not readiness["ok"]:
+        details = "；".join(item["detail"] for item in readiness["checks"] if not item["ok"])
+        raise SystemExit("预检失败: " + details)
+    if args.dry_run:
+        if not args.replay:
+            raise SystemExit("dry-run 需要 --replay 文件")
+        await dry_run_replay(config, args.replay)
+        return
 
     # 创建系统
-    live = DigitalHumanLive(config)
+    live = DigitalHumanLive(config, replay_path=args.replay)
 
     # 信号处理
     def signal_handler(sig, frame):
@@ -280,7 +310,7 @@ async def main():
     try:
         await live.initialize()
 
-        if args.interactive or not config.get("live", {}).get("room_id"):
+        if args.interactive or (not args.replay and not config.get("live", {}).get("room_id")):
             # 交互模式
             await interactive_mode(live)
         else:
@@ -291,6 +321,24 @@ async def main():
         pass
     finally:
         await live.stop()
+
+
+async def dry_run_replay(config, replay_path):
+    from barrage import ReplayBarrage
+    from scripts import ScriptManager
+
+    scripts = ScriptManager(config.get("scripts", {}))
+    barrage = ReplayBarrage(replay_path, speed=1000, poll_interval=0.01)
+    await barrage.connect()
+    while True:
+        message = await barrage.get_message()
+        if message is None and barrage.exhausted:
+            break
+        if message is None:
+            continue
+        reply = scripts.check_keyword(message.text) or f"收到{message.user}的问题：{message.text}"
+        print(json.dumps({"user": message.user, "text": message.text, "reply": reply}, ensure_ascii=False))
+    await barrage.disconnect()
 
 
 if __name__ == "__main__":
