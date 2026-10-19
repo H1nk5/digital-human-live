@@ -13,7 +13,12 @@ def load_config(config_path: str = "config.yaml") -> dict:
         raise FileNotFoundError(f"配置文件不存在: {config_path}")
 
     with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+    if config is None:
+        return {}
+    if not isinstance(config, dict):
+        raise ValueError("配置文件顶层必须是对象")
+    return config
 
 
 def setup_logging(config: dict):
